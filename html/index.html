@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Application</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; }
+        .form-group input, .form-group button { width: 100%; padding: 8px; }
+        #encryptionKeyDisplay { margin-top: 15px; font-weight: bold; color: green; }
+        #messages { height: 200px; overflow-y: scroll; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chat Application</h1>
+        <div id="setup">
+            <div class="form-group">
+                <label for="password">Compromise Password:</label>
+                <input type="password" id="password">
+            </div>
+            <div class="form-group">
+                <label for="ip">Target IP Address:</label>
+                <input type="text" id="ip">
+            </div>
+            <div class="form-group">
+                <label for="port">Port:</label>
+                <input type="number" id="port" value="1234">
+            </div>
+            <div class="form-group">
+                <label for="encryptionKey">Enable Encryption:</label>
+                <input type="checkbox" id="encryptionKey">
+            </div>
+            <button onclick="startChat()">Start Chat</button>
+            <div id="encryptionKeyDisplay" style="display:none;"></div>
+        </div>
+        <div id="chat" style="display:none;">
+            <div class="form-group">
+                <textarea id="messages" readonly></textarea>
+            </div>
+            <div class="form-group">
+                <input type="text" id="messageInput" placeholder="Type your message here">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        function startChat() {
+            const password = document.getElementById('password').value;
+            const ip = document.getElementById('ip').value;
+            const port = document.getElementById('port').value;
+            const useEncryptionKey = document.getElementById('encryptionKey').checked;
+
+            fetch('/start-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password, ip, port, useEncryptionKey })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.encryptionKey) {
+                        document.getElementById('encryptionKeyDisplay').textContent = `Encryption Key: ${data.encryptionKey}`;
+                        document.getElementById('encryptionKeyDisplay').style.display = 'block';
+                    } else {
+                        document.getElementById('encryptionKeyDisplay').style.display = 'none';
+                    }
+                    document.getElementById('setup').style.display = 'none';
+                    document.getElementById('chat').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value;
+
+            fetch('/send-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('messageInput').value = '';
+                } else {
+                    alert('Error sending message');
+                }
+            });
+        }
+
+        // Receive messages from the server
+        socket.on('message', (message) => {
+            const messages = document.getElementById('messages');
+            messages.value += `Received: ${message}\n`;
+            messages.scrollTop = messages.scrollHeight; // Scroll to bottom
+        });
+    </script>
+</body>
+</html>
